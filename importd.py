@@ -71,7 +71,7 @@ class D(object):
     # tuple (a, b) is equivalent to from a import b
     # if b is an iterable (b = [c, d]), it is equivalent 
     # to from a import c, d
-    DJANGO_IMPORT = (
+    DJANGO_IMPORT = [
         ('smarturls', 'surl'),
         ('django.http', ['HttpResponse', 'Http404', 'HttpResponseRedirect']),
         ('django.shortcuts', ['get_object_or_404', 'render_to_response']),
@@ -81,7 +81,11 @@ class D(object):
         ('django', 'forms'),
         ('fhurl', ['RequestForm', 'fhurl', 'JSONResponse']),
         ('django.db.models', ''),
-        )
+        ]
+
+    def django_import(self, module, names=''):
+        """Adds a specified import to DJANGO_IMPORT. The syntax is lagely the same"""
+        self.DJANGO_IMPORT.append((module, names))
 
     def _iterate_imports(self, callback):
         """Iterates through imports and calls callback for each
@@ -98,16 +102,17 @@ class D(object):
 
         # override models.Models so there metaclass magic isn't called
 
+    def _import_module(self, module_name, attributes):
+        import importlib
+        module = importlib.import_module(module_name)
+        if attributes:
+            for attribute in attributes:
+                    setattr(self, attribute, getattr(module, attribute))
+        else:
+            setattr(self, module_name.split(".")[-1], module)
+
     def _import_django(self):
-        def set_attr(module_name, attributes):
-            import importlib
-            module = importlib.import_module(module_name)
-            if attributes:
-                for attribute in attributes:
-                        setattr(self, attribute, getattr(module, attribute))
-            else:
-                setattr(self, module_name.split(".")[-1], module)
-        self._iterate_imports(set_attr)
+        self._iterate_imports(self._import_module)
         self._models = self.models
         self.models = self.ModelHandler(self)
 
